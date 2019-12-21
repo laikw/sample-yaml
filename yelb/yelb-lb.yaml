@@ -4,7 +4,7 @@ kind: Service
 metadata:
   name: redis-server
   labels:
-    app: redis-server
+    app: yelb-redis
     tier: cache
   namespace: yelb
 spec:
@@ -12,7 +12,7 @@ spec:
   ports:
   - port: 6379
   selector:
-    app: redis-server
+    app: yelb-redis
     tier: cache
 ---
 apiVersion: v1
@@ -56,7 +56,7 @@ metadata:
     tier: frontend
   namespace: yelb
 spec:
-  type: ClusterIP
+  type: LoadBalancer
   ports:
   - port: 80
     protocol: TCP
@@ -64,20 +64,6 @@ spec:
   selector:
     app: yelb-ui
     tier: frontend
----    
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: yelb-ui-ingress
-  namespace: yelb
-spec:
-  rules:
-    - host: yelb.aces-star.com
-      http:
-        paths:
-        - backend:
-            serviceName: yelb-ui
-            servicePort: 80
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -86,6 +72,11 @@ metadata:
   namespace: yelb
 spec:
   replicas: 2
+  selector:
+    matchLabels:
+      app: yelb-ui
+      tier: frontend
+      secgroup: web
   template:
     metadata:
       labels:
@@ -102,18 +93,22 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: redis-server
+  name: yelb-redis
   namespace: yelb
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: yelb-redis
+      tier: cache
   template:
     metadata:
       labels:
-        app: redis-server
+        app: yelb-redis
         tier: cache
     spec:
       containers:
-      - name: redis-server
+      - name: yelb-redis
         image: redis:4.0.2
         ports:
         - containerPort: 6379
@@ -125,6 +120,10 @@ metadata:
   namespace: yelb
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: yelb-db
+      tier: backenddb
   template:
     metadata:
       labels:
@@ -144,6 +143,10 @@ metadata:
   namespace: yelb
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: yelb-appserver
+      tier: middletier
   template:
     metadata:
       labels:
