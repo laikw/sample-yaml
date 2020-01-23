@@ -1,0 +1,65 @@
+formatVersion: 1
+inputs:
+  hostname:
+    type: string
+    title: VM Hostname
+    pattern: ''
+  size:
+    type: string
+    enum:
+      - Small
+      - Medium
+    default: Small
+    title: VM Size
+  username:
+    type: string
+    title: VM username
+    description: username will be added to sudo
+    default: user
+  password:
+    type: string
+    description: Run the command "mkpasswd --method=SHA-512 --rounds=4096" to generate the hash and paste it in. Default value provided is "password"
+    default: password
+    title: User password
+resources:
+  Cloud_vSphere_Machine_1:
+    type: Cloud.vSphere.Machine
+    properties:
+      image: CentOS
+      name: '${input.hostname}'
+      networks:
+        - tags: []
+          network: '${resource.Cloud_vSphere_Network_1.id}'
+          assignment: dynamic
+          assignIPv6Address: false
+          assignPublicIpAddress: false
+      cloudConfig: |
+        #cloud-config
+        packages:
+          - php
+        #hostname: ${input.hostname}
+        runcmd:
+          - touch test.txt
+          - mkdir -p /root/test
+          - hostnamectl set-hostname ${input.hostname}
+        chpasswd:
+          list: |
+            ${input.username}:${input.password}
+          expire: false
+        users:
+          - default
+          - name: ${input.username}
+            passwd: ${input.password}
+            lock_passwd: false
+            sudo: ['ALL=(ALL) NOPASSWD:ALL']
+            groups: [wheel, sudo, admin]
+            shell: '/bin/bash'
+      flavor: '${input.size}'
+      attachedDisks: []
+  #customizationSpec: Linux
+  Cloud_vSphere_Network_1:
+    type: Cloud.vSphere.Network
+    properties:
+      networkType: existing
+      constraints:
+        - tag: 'network:DC03VM01'
