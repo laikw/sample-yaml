@@ -1,0 +1,57 @@
+formatVersion: 1
+inputs:
+  hostname:
+    type: string
+    title: hostname
+  size:
+    type: string
+    enum:
+      - small
+      - medium
+    default: medium
+    title: Size
+resources:
+  Cloud_vSphere_Machine_1:
+    type: Cloud.vSphere.Machine
+    properties:
+      image: Windows
+      name: '${input.hostname}'
+      newName: '${input.hostname}'
+      flavor: '${input.size}'
+      pass: VMware1!
+      networks:
+        - tags: []
+          network: '${resource.Cloud_vSphere_Network_1.id}'
+          assignment: dynamic
+          assignIPv6Address: false
+          assignPublicIpAddress: false
+      cloudConfig: |
+        #cloud-config
+
+        write_files:
+          content: |
+            Get-NetIPAddress | Out-File c:\net.txt
+            $domain = ""
+            $password = "" | ConvertTo-SecureString -asPlainText -Force
+            $username = "$domain\administrator" 
+            $credential = New-Object System.Management.Automation.PSCredential($username,$password)
+          
+            Add-Computer -DomainName $domain -NewName ${input.hostname} -Credential $credential -OUPath "" 
+            Add-LocalGroupMember -Group "Administrators" -Member "$domain\${env.requestedBy}"
+            Restart-Computer
+          path: C:\test.ps1
+        #set_hostname: ${input.hostname}
+        users:
+          - name: user1
+        runcmd:
+          - 'echo ${resource.Cloud_vSphere_Machine_1.pass} > c:\aaa.txt'
+          - 'cd\'
+          - 'powershell .\test.ps1' 
+          - 'del c:\test.ps1'
+
+  Cloud_vSphere_Network_1:
+    type: Cloud.vSphere.Network
+    properties:
+      networkType: existing
+      constraints:
+        - tag: 'network:DC03VM01'
